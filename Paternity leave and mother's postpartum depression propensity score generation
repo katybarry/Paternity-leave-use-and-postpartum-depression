@@ -1,0 +1,409 @@
+## Project: The influence of paternity leave uptake on parental post-partum depression: An ELFE cohort study 
+## Script purpose: Propensity score generation for paternity leave use and mother's PPD population (N=13 075) using TWANG package version 2.3.
+# Author: Katharine M. Barry
+# Email: katharine.barry@inserm.fr
+#################################################################################################################################################
+## uploading needed packages
+require('haven')
+library(dplyr)
+library(tidyr)
+library(twang)
+
+## upload imputed data
+data<-read_sas('momimpute.sas7bdat')
+
+## data management (organizing variables to be either numeric or factoral)
+data$M00X_APGAR5M<- as.numeric(data$M00X_APGAR5M)
+data$M00M2_AGEP<- as.numeric(data$M00M2_AGEP)
+data$M00M2_AGEM<-as.numeric(data$M00M2_AGEM)
+data$M00M2_AGEP<-as.numeric(data$M00M2_AGEP)
+data$M02M_TOTREVEN<-as.numeric(data$M02M_TOTREVEN)
+data$number_householda<- as.numeric(data$number_householda)
+data$M00X_SEXEC3<- as.factor(data$M00X_SEXEC3)
+data$M02M_CONGPAT <-as.factor(data$M02M_CONGPAT)
+data$M2_M_PPD<-as.factor(data$M2_M_PPD)
+data$M2_P_PPD <-as.factor(data$M2_P_PPD)
+data$M0_Birthseason<-as.factor(data$M0_Birthseason)
+data$dad_prof <-as.factor(data$dad_prof )
+data$mom_prof  <-as.factor(data$mom_prof )
+data$M0_M_nation <-as.factor(data$M0_M_nation)
+data$M0_P_nation <-as.factor(data$M0_P_nation )
+data$motherrelation <-as.factor(data$motherrelation)
+data$mother_diploma <-as.factor(data$mother_diploma)
+data$father_diploma <-as.factor(data$father_diploma )
+data$M2_M_worktype <-as.factor(data$M2_M_worktype)
+data$M2_M_worksector <-as.factor(data$M2_M_worksector)
+data$M02M_TRGR <-as.factor(data$M02M_TRGR)
+data$M02M_CONGIN  <-as.factor(data$M02M_CONGIN )
+data$M02M_SUIVI <-as.factor(data$M02M_SUIVI )
+data$M00M2_PEREACC <-as.factor(data$M00M2_PEREACC)
+data$M00X_AUTPATHO <-as.factor(data$M00X_AUTPATHO)
+data$M00M2_DEPGR <-as.factor(data$M00M2_DEPGR)
+data$M00M2_GANT <-as.factor(data$M00M2_GANT )
+data$troublesmental <-as.factor(data$troublesmental)
+data$Fwanted_child <-as.factor(data$Fwanted_child)
+data$Mwanted_child <-as.factor(data$Mwanted_child )
+data$M2_conflict <-as.factor(data$M2_conflict)
+data$M0_zone <-as.factor(data$M0_zone)
+data$M0_siblingbis <-as.factor(data$M0_siblingbis)
+data$M00X_AGEGESTS<-as.numeric(data$M00X_AGEGESTS)
+data$M00X_APGAR5M  <-as.numeric(data$M00X_APGAR5M)
+data$M2_P_worktype <-as.factor(data$M2_P_worktype )
+data$M2_P_worksector <-as.factor(data$M2_P_worksector )
+data$M02M_TYPALI<-as.factor(data$M02M_TYPALI)
+
+
+##subsetting imputed data into separate datasets
+
+impute_1 <- subset(data, imputation==1)
+impute_2 <- subset(data, imputation==2)
+impute_3 <- subset(data, imputation==3)
+impute_4 <- subset(data, imputation==4)
+impute_5 <- subset(data, imputation==5)
+impute_6 <- subset(data, imputation==6)
+impute_7 <- subset(data, imputation==7)
+impute_8 <- subset(data, imputation==8)
+impute_9 <- subset(data, imputation==9)
+impute_10 <- subset(data, imputation==10)
+impute_11 <- subset(data, imputation==11)
+impute_12 <- subset(data, imputation==12)
+impute_13 <- subset(data, imputation==13)
+impute_14 <- subset(data, imputation==14)
+
+
+##set seed
+
+set.seed(1)
+
+### perform propensity score generation for each imputed dataset
+mnps_1 <- mnps(M02M_CONGPAT ~ M00M2_AGEM+M00M2_AGEP+M02M_TOTREVEN+number_householda+M00X_SEXEC3+
+                 M2_P_PPD+M0_Birthseason+dad_prof +mom_prof + M0_M_nation +M0_P_nation +motherrelation 
+               +mother_diploma +father_diploma +M2_M_worktype +M2_M_worksector +M02M_TRGR +M02M_CONGIN 
+               + M02M_SUIVI +M00M2_PEREACC +M00X_AUTPATHO +M00M2_DEPGR +M00M2_GANT +troublesmental 
+               +Fwanted_child +Mwanted_child +M2_conflict +M0_zone +M0_siblingbis +M00X_AGEGESTS+M00X_APGAR5M 
+               + M2_P_worktype +M2_P_worksector +M02M_TYPALI,
+               data =  as.data.frame(impute_1),
+               n.trees = 10000,
+               interaction.depth = 3,
+               shrinkage = 0.01,
+               perm.test.iters = 0,
+               stop.method = c("es.mean", "ks.mean"),
+               estimand = "ATE",
+               treatATT = NULL,
+               verbose = FALSE
+)
+## generate balance table for the first imputation
+if("pair" != "none"){                                 
+  baltab<-bal.table(mnps_1, collapse.to="pair") 
+  write.table(baltab,file="balance_table_1.csv",row.names=FALSE,col.names=TRUE,sep=',',na='.')
+}
+
+#using this balance table to decide which stop method statistic to use for the weights
+
+balance_1_collapse<- bal.table(mnps_1, collapse.to = 'covariate', digits = 4)
+write.table(balance_1_collapse,file="balance_1_collapse.csv",row.names=FALSE,col.names=TRUE,sep=';',na='.')
+
+##placing the weight into the dataset as a variable
+
+impute_1$w_1<-get.weights(mnps_1, stop.method="ks.mean")
+
+### process repeated for each imputed dataset
+
+mnps_2 <- mnps(M02M_CONGPAT ~ M00M2_AGEM+M00M2_AGEP+M02M_TOTREVEN+number_householda+M00X_SEXEC3+
+                 M2_P_PPD+M0_Birthseason+dad_prof +mom_prof + M0_M_nation +M0_P_nation +motherrelation 
+               +mother_diploma +father_diploma +M2_M_worktype +M2_M_worksector +M02M_TRGR +M02M_CONGIN 
+               + M02M_SUIVI +M00M2_PEREACC +M00X_AUTPATHO +M00M2_DEPGR +M00M2_GANT +troublesmental 
+               +Fwanted_child +Mwanted_child +M2_conflict +M0_zone +M0_siblingbis +M00X_AGEGESTS+M00X_APGAR5M 
+               + M2_P_worktype +M2_P_worksector +M02M_TYPALI,
+               data =  as.data.frame(impute_2),
+               n.trees = 10000,
+               interaction.depth = 3,
+               shrinkage = 0.01,
+               perm.test.iters = 0,
+               stop.method = c("es.mean", "ks.mean"),
+               estimand = "ATE",
+               treatATT = NULL,
+               verbose = FALSE
+)
+impute_2$w_2<-get.weights(mnps_2, stop.method="ks.mean")
+
+mnps_3 <- mnps(M02M_CONGPAT ~ M00M2_AGEM+M00M2_AGEP+M02M_TOTREVEN+number_householda+M00X_SEXEC3+
+                 M2_P_PPD+M0_Birthseason+dad_prof +mom_prof + M0_M_nation +M0_P_nation +motherrelation 
+               +mother_diploma +father_diploma +M2_M_worktype +M2_M_worksector +M02M_TRGR +M02M_CONGIN 
+               + M02M_SUIVI +M00M2_PEREACC +M00X_AUTPATHO +M00M2_DEPGR +M00M2_GANT +troublesmental 
+               +Fwanted_child +Mwanted_child +M2_conflict +M0_zone +M0_siblingbis +M00X_AGEGESTS+M00X_APGAR5M 
+               + M2_P_worktype +M2_P_worksector +M02M_TYPALI,
+               data =  as.data.frame(impute_3),
+               n.trees = 10000,
+               interaction.depth = 3,
+               shrinkage = 0.01,
+               perm.test.iters = 0,
+               stop.method = c("es.mean", "ks.mean"),
+               estimand = "ATE",
+               treatATT = NULL,
+               verbose = FALSE
+)
+impute_3$w_3<-get.weights(mnps_3, stop.method="ks.mean")
+
+mnps_4 <- mnps(M02M_CONGPAT ~ M00M2_AGEM+M00M2_AGEP+M02M_TOTREVEN+number_householda+M00X_SEXEC3+
+                 M2_P_PPD+M0_Birthseason+dad_prof +mom_prof + M0_M_nation +M0_P_nation +motherrelation 
+               +mother_diploma +father_diploma +M2_M_worktype +M2_M_worksector +M02M_TRGR +M02M_CONGIN 
+               + M02M_SUIVI +M00M2_PEREACC +M00X_AUTPATHO +M00M2_DEPGR +M00M2_GANT +troublesmental 
+               +Fwanted_child +Mwanted_child +M2_conflict +M0_zone +M0_siblingbis +M00X_AGEGESTS+M00X_APGAR5M 
+               + M2_P_worktype +M2_P_worksector +M02M_TYPALI,
+               data =  as.data.frame(impute_4),
+               n.trees = 10000,
+               interaction.depth = 3,
+               shrinkage = 0.01,
+               perm.test.iters = 0,
+               stop.method = c("es.mean", "ks.mean"),
+               estimand = "ATE",
+               treatATT = NULL,
+               verbose = FALSE
+)
+impute_4$w_4<-get.weights(mnps_4, stop.method="ks.mean")
+
+mnps_5 <- mnps(M02M_CONGPAT ~ M00M2_AGEM+M00M2_AGEP+M02M_TOTREVEN+number_householda+M00X_SEXEC3+
+                 M2_P_PPD+M0_Birthseason+dad_prof +mom_prof + M0_M_nation +M0_P_nation +motherrelation 
+               +mother_diploma +father_diploma +M2_M_worktype +M2_M_worksector +M02M_TRGR +M02M_CONGIN 
+               + M02M_SUIVI +M00M2_PEREACC +M00X_AUTPATHO +M00M2_DEPGR +M00M2_GANT +troublesmental 
+               +Fwanted_child +Mwanted_child +M2_conflict +M0_zone +M0_siblingbis +M00X_AGEGESTS+M00X_APGAR5M 
+               + M2_P_worktype +M2_P_worksector +M02M_TYPALI,
+               data =  as.data.frame(impute_5),
+               n.trees = 10000,
+               interaction.depth = 3,
+               shrinkage = 0.01,
+               perm.test.iters = 0,
+               stop.method = c("es.mean", "ks.mean"),
+               estimand = "ATE",
+               treatATT = NULL,
+               verbose = FALSE
+)
+impute_5$w_5<-get.weights(mnps_5, stop.method="ks.mean")
+
+mnps_6 <- mnps(M02M_CONGPAT ~ M00M2_AGEM+M00M2_AGEP+M02M_TOTREVEN+number_householda+M00X_SEXEC3+
+                 M2_P_PPD+M0_Birthseason+dad_prof +mom_prof + M0_M_nation +M0_P_nation +motherrelation 
+               +mother_diploma +father_diploma +M2_M_worktype +M2_M_worksector +M02M_TRGR +M02M_CONGIN 
+               + M02M_SUIVI +M00M2_PEREACC +M00X_AUTPATHO +M00M2_DEPGR +M00M2_GANT +troublesmental 
+               +Fwanted_child +Mwanted_child +M2_conflict +M0_zone +M0_siblingbis +M00X_AGEGESTS+M00X_APGAR5M 
+               + M2_P_worktype +M2_P_worksector +M02M_TYPALI,
+               data =  as.data.frame(impute_6),
+               n.trees = 10000,
+               interaction.depth = 3,
+               shrinkage = 0.01,
+               perm.test.iters = 0,
+               stop.method = c("es.mean", "ks.mean"),
+               estimand = "ATE",
+               treatATT = NULL,
+               verbose = FALSE
+)
+impute_6$w_6<-get.weights(mnps_6, stop.method="ks.mean")
+
+mnps_7 <- mnps(M02M_CONGPAT ~ M00M2_AGEM+M00M2_AGEP+M02M_TOTREVEN+number_householda+M00X_SEXEC3+
+                 M2_P_PPD+M0_Birthseason+dad_prof +mom_prof + M0_M_nation +M0_P_nation +motherrelation 
+               +mother_diploma +father_diploma +M2_M_worktype +M2_M_worksector +M02M_TRGR +M02M_CONGIN 
+               + M02M_SUIVI +M00M2_PEREACC +M00X_AUTPATHO +M00M2_DEPGR +M00M2_GANT +troublesmental 
+               +Fwanted_child +Mwanted_child +M2_conflict +M0_zone +M0_siblingbis +M00X_AGEGESTS+M00X_APGAR5M 
+               + M2_P_worktype +M2_P_worksector +M02M_TYPALI,
+               data =  as.data.frame(impute_7),
+               n.trees = 10000,
+               interaction.depth = 3,
+               shrinkage = 0.01,
+               perm.test.iters = 0,
+               stop.method = c("es.mean", "ks.mean"),
+               estimand = "ATE",
+               treatATT = NULL,
+               verbose = FALSE
+)
+impute_7$w_7<-get.weights(mnps_7, stop.method="ks.mean")
+
+mnps_8 <- mnps(M02M_CONGPAT ~ M00M2_AGEM+M00M2_AGEP+M02M_TOTREVEN+number_householda+M00X_SEXEC3+
+                 M2_P_PPD+M0_Birthseason+dad_prof +mom_prof + M0_M_nation +M0_P_nation +motherrelation 
+               +mother_diploma +father_diploma +M2_M_worktype +M2_M_worksector +M02M_TRGR +M02M_CONGIN 
+               + M02M_SUIVI +M00M2_PEREACC +M00X_AUTPATHO +M00M2_DEPGR +M00M2_GANT +troublesmental 
+               +Fwanted_child +Mwanted_child +M2_conflict +M0_zone +M0_siblingbis +M00X_AGEGESTS+M00X_APGAR5M 
+               + M2_P_worktype +M2_P_worksector +M02M_TYPALI,
+               data =  as.data.frame(impute_8),
+               n.trees = 10000,
+               interaction.depth = 3,
+               shrinkage = 0.01,
+               perm.test.iters = 0,
+               stop.method = c("es.mean", "ks.mean"),
+               estimand = "ATE",
+               treatATT = NULL,
+               verbose = FALSE
+)
+impute_8$w_8<-get.weights(mnps_8, stop.method="ks.mean")
+
+mnps_9 <- mnps(M02M_CONGPAT ~ M00M2_AGEM+M00M2_AGEP+M02M_TOTREVEN+number_householda+M00X_SEXEC3+
+                 M2_P_PPD+M0_Birthseason+dad_prof +mom_prof + M0_M_nation +M0_P_nation +motherrelation 
+               +mother_diploma +father_diploma +M2_M_worktype +M2_M_worksector +M02M_TRGR +M02M_CONGIN 
+               + M02M_SUIVI +M00M2_PEREACC +M00X_AUTPATHO +M00M2_DEPGR +M00M2_GANT +troublesmental 
+               +Fwanted_child +Mwanted_child +M2_conflict +M0_zone +M0_siblingbis +M00X_AGEGESTS+M00X_APGAR5M 
+               + M2_P_worktype +M2_P_worksector +M02M_TYPALI,
+               data =  as.data.frame(impute_9),
+               n.trees = 10000,
+               interaction.depth = 3,
+               shrinkage = 0.01,
+               perm.test.iters = 0,
+               stop.method = c("es.mean", "ks.mean"),
+               estimand = "ATE",
+               treatATT = NULL,
+               verbose = FALSE
+)
+impute_9$w_9<-get.weights(mnps_9, stop.method="ks.mean")
+
+mnps_10 <- mnps(M02M_CONGPAT ~ M00M2_AGEM+M00M2_AGEP+M02M_TOTREVEN+number_householda+M00X_SEXEC3+
+                  M2_P_PPD+M0_Birthseason+dad_prof +mom_prof + M0_M_nation +M0_P_nation +motherrelation 
+                +mother_diploma +father_diploma +M2_M_worktype +M2_M_worksector +M02M_TRGR +M02M_CONGIN 
+                + M02M_SUIVI +M00M2_PEREACC +M00X_AUTPATHO +M00M2_DEPGR +M00M2_GANT +troublesmental 
+                +Fwanted_child +Mwanted_child +M2_conflict +M0_zone +M0_siblingbis +M00X_AGEGESTS+M00X_APGAR5M 
+                + M2_P_worktype +M2_P_worksector +M02M_TYPALI,
+                data =  as.data.frame(impute_10),
+                n.trees = 10000,
+                interaction.depth = 3,
+                shrinkage = 0.01,
+                perm.test.iters = 0,
+                stop.method = c("es.mean", "ks.mean"),
+                estimand = "ATE",
+                treatATT = NULL,
+                verbose = FALSE
+)
+impute_10$w_10<-get.weights(mnps_10, stop.method="ks.mean")
+
+mnps_11 <- mnps(M02M_CONGPAT ~ M00M2_AGEM+M00M2_AGEP+M02M_TOTREVEN+number_householda+M00X_SEXEC3+
+                  M2_P_PPD+M0_Birthseason+dad_prof +mom_prof + M0_M_nation +M0_P_nation +motherrelation 
+                +mother_diploma +father_diploma +M2_M_worktype +M2_M_worksector +M02M_TRGR +M02M_CONGIN 
+                + M02M_SUIVI +M00M2_PEREACC +M00X_AUTPATHO +M00M2_DEPGR +M00M2_GANT +troublesmental 
+                +Fwanted_child +Mwanted_child +M2_conflict +M0_zone +M0_siblingbis +M00X_AGEGESTS+M00X_APGAR5M 
+                + M2_P_worktype +M2_P_worksector +M02M_TYPALI,
+                data =  as.data.frame(impute_11),
+                n.trees = 10000,
+                interaction.depth = 3,
+                shrinkage = 0.01,
+                perm.test.iters = 0,
+                stop.method = c("es.mean", "ks.mean"),
+                estimand = "ATE",
+                treatATT = NULL,
+                verbose = FALSE
+)
+impute_11$w_11<-get.weights(mnps_11, stop.method="ks.mean")
+
+mnps_12 <- mnps(M02M_CONGPAT ~ M00M2_AGEM+M00M2_AGEP+M02M_TOTREVEN+number_householda+M00X_SEXEC3+
+                  M2_P_PPD+M0_Birthseason+dad_prof +mom_prof + M0_M_nation +M0_P_nation +motherrelation 
+                +mother_diploma +father_diploma +M2_M_worktype +M2_M_worksector +M02M_TRGR +M02M_CONGIN 
+                + M02M_SUIVI +M00M2_PEREACC +M00X_AUTPATHO +M00M2_DEPGR +M00M2_GANT +troublesmental 
+                +Fwanted_child +Mwanted_child +M2_conflict +M0_zone +M0_siblingbis +M00X_AGEGESTS+M00X_APGAR5M 
+                + M2_P_worktype +M2_P_worksector +M02M_TYPALI,
+                data =  as.data.frame(impute_12),
+                n.trees = 10000,
+                interaction.depth = 3,
+                shrinkage = 0.01,
+                perm.test.iters = 0,
+                stop.method = c("es.mean", "ks.mean"),
+                estimand = "ATE",
+                treatATT = NULL,
+                verbose = FALSE
+)
+impute_12$w_12<-get.weights(mnps_12, stop.method="ks.mean")
+
+mnps_13 <- mnps(M02M_CONGPAT ~ M00M2_AGEM+M00M2_AGEP+M02M_TOTREVEN+number_householda+M00X_SEXEC3+
+                  M2_P_PPD+M0_Birthseason+dad_prof +mom_prof + M0_M_nation +M0_P_nation +motherrelation 
+                +mother_diploma +father_diploma +M2_M_worktype +M2_M_worksector +M02M_TRGR +M02M_CONGIN 
+                + M02M_SUIVI +M00M2_PEREACC +M00X_AUTPATHO +M00M2_DEPGR +M00M2_GANT +troublesmental 
+                +Fwanted_child +Mwanted_child +M2_conflict +M0_zone +M0_siblingbis +M00X_AGEGESTS+M00X_APGAR5M 
+                + M2_P_worktype +M2_P_worksector +M02M_TYPALI,
+                data =  as.data.frame(impute_13),
+                n.trees = 10000,
+                interaction.depth = 3,
+                shrinkage = 0.01,
+                perm.test.iters = 0,
+                stop.method = c("es.mean", "ks.mean"),
+                estimand = "ATE",
+                treatATT = NULL,
+                verbose = FALSE
+)
+impute_13$w_13<-get.weights(mnps_13, stop.method="ks.mean")
+
+mnps_14 <- mnps(M02M_CONGPAT ~ M00M2_AGEM+M00M2_AGEP+M02M_TOTREVEN+number_householda+M00X_SEXEC3+
+                  M2_P_PPD+M0_Birthseason+dad_prof +mom_prof + M0_M_nation +M0_P_nation +motherrelation 
+                +mother_diploma +father_diploma +M2_M_worktype +M2_M_worksector +M02M_TRGR +M02M_CONGIN 
+                + M02M_SUIVI +M00M2_PEREACC +M00X_AUTPATHO +M00M2_DEPGR +M00M2_GANT +troublesmental 
+                +Fwanted_child +Mwanted_child +M2_conflict +M0_zone +M0_siblingbis +M00X_AGEGESTS+M00X_APGAR5M 
+                + M2_P_worktype +M2_P_worksector +M02M_TYPALI,
+                data =  as.data.frame(impute_14),
+                n.trees = 10000,
+                interaction.depth = 3,
+                shrinkage = 0.01,
+                perm.test.iters = 0,
+                stop.method = c("es.mean", "ks.mean"),
+                estimand = "ATE",
+                treatATT = NULL,
+                verbose = FALSE
+)
+impute_14$w_14<-get.weights(mnps_14, stop.method="ks.mean")
+
+## save the imputed datasets as separate datasets with the weight as a variable. Then, combine all datasets into one dataset in SAS
+
+
+write.csv(impute_1,"impute_1.csv", row.names = FALSE)
+write.csv(impute_2,"impute_2.csv", row.names = FALSE)
+write.csv(impute_3,"impute_3.csv", row.names = FALSE)
+write.csv(impute_4,"impute_4.csv", row.names = FALSE)
+write.csv(impute_5,"impute_5.csv", row.names = FALSE)
+write.csv(impute_6,"impute_6.csv", row.names = FALSE)
+write.csv(impute_7,"impute_7.csv", row.names = FALSE)
+write.csv(impute_8,"impute_8.csv", row.names = FALSE)
+write.csv(impute_9,"impute_9.csv", row.names = FALSE)
+write.csv(impute_10,"impute_10.csv", row.names = FALSE)
+write.csv(impute_11,"impute_11.csv", row.names = FALSE)
+write.csv(impute_12,"impute_12.csv", row.names = FALSE)
+write.csv(impute_13,"impute_13.csv", row.names = FALSE)
+write.csv(impute_14,"impute_14.csv", row.names = FALSE)
+
+
+save.image(file="propensityscoresmom.RData")
+
+library(twang)
+## generating plots to see the balance before and after weighting
+plot(mnps_1, plots=3, subset=2)
+plot(mnps_1, plots=5, subset=2)
+
+plot(mnps_2, plots=3, subset=2)
+plot(mnps_2, plots=5, subset=2)
+
+plot(mnps_3, plots=3, subset=2)
+plot(mnps_3, plots=5, subset=2)
+
+plot(mnps_4, plots=3, subset=2)
+plot(mnps_4, plots=5, subset=2)
+
+plot(mnps_5, plots=3, subset=2)
+plot(mnps_5, plots=5, subset=2)
+
+plot(mnps_6, plots=3, subset=2)
+plot(mnps_6, plots=5, subset=2)
+
+plot(mnps_7, plots=3, subset=2)
+plot(mnps_7, plots=5, subset=2)
+
+plot(mnps_8, plots=3, subset=2)
+plot(mnps_8, plots=5, subset=2)
+
+plot(mnps_9, plots=3, subset=2)
+plot(mnps_9, plots=5, subset=2)
+
+plot(mnps_10, plots=3, subset=2)
+plot(mnps_10, plots=5, subset=2)
+
+plot(mnps_11, plots=3, subset=2)
+plot(mnps_11, plots=5, subset=2)
+
+plot(mnps_12, plots=3, subset=2)
+plot(mnps_12, plots=5, subset=2)
+
+plot(mnps_13, plots=3, subset=2)
+plot(mnps_13, plots=5, subset=2)
+
+plot(mnps_14, plots=3, subset=2)
+plot(mnps_14, plots=5, subset=2)
